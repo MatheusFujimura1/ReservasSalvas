@@ -254,6 +254,9 @@ const history = {
                         <button onclick="ui.download('${res.image_data}', '${res.reservation_number}')" class="p-2 hover:bg-[#141414] hover:text-white transition-colors border border-[#141414]/10" title="Baixar Foto">
                             <i data-lucide="download" class="w-5 h-5"></i>
                         </button>
+                        <button onclick="history.deleteItem(${res.id})" class="p-2 hover:bg-red-600 hover:text-white transition-colors border border-[#141414]/10 text-red-600" title="Excluir">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
                         <button onclick="ui.openModal('${res.image_data}')" class="p-2 hover:bg-[#141414] hover:text-white transition-colors border border-[#141414]/10">
                             <i data-lucide="maximize-2" class="w-5 h-5"></i>
                         </button>
@@ -262,6 +265,17 @@ const history = {
             </div>
         `).join('');
         lucide.createIcons();
+    },
+    deleteItem: async (id) => {
+        if (confirm('Deseja excluir esta reserva permanentemente?')) {
+            const newData = {
+                ...GithubDB.data,
+                reservations: GithubDB.data.reservations.filter(r => r.id !== id)
+            };
+            if (await GithubDB.saveData(newData)) {
+                history.render();
+            }
+        }
     }
 };
 
