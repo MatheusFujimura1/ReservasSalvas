@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner de Reservas - GitHub Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-[#E5E5E5] text-[#141414] font-sans selection:bg-[#141414] selection:text-white">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-[100] flex flex-col items-center justify-center hidden">
+        <div class="w-12 h-12 border-4 border-[#141414] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p id="loading-text" class="font-mono text-xs uppercase tracking-widest">Sincronizando...</p>
+    </div>
+
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="border-b border-[#141414] bg-white p-6">
+            <div class="max-w-7xl mx-auto flex justify-between items-end">
+                <div>
+                    <h1 class="text-4xl font-serif italic tracking-tight">Scanner de Reservas</h1>
+                    <p class="text-[10px] uppercase tracking-[0.3em] mt-2 opacity-40 font-mono">Sistema de OCR Cloud v4.0</p>
+                </div>
+                <nav class="flex border border-[#141414]">
+                    <button onclick="router.navigate('scan')" id="nav-scan" class="nav-btn nav-btn-active">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Scanner</span>
+                    </button>
+                    <button onclick="router.navigate('history')" id="nav-history" class="nav-btn">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Histórico</span>
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl mx-auto w-full p-6">
+            <!-- View: Scan -->
+            <section id="view-scan" class="view-section space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Scanner Area -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="relative aspect-video bg-black border border-[#141414] overflow-hidden group">
+                            <video id="webcam" autoplay playsinline class="w-full h-full object-cover grayscale opacity-60"></video>
+                            <canvas id="crop-canvas" class="hidden"></canvas>
+                            
+                            <!-- Overlay UI -->
+                            <div class="absolute inset-0 pointer-events-none border-[40px] border-black/20"></div>
+                            
+                            <!-- Target Area -->
+                            <div class="absolute top-0 right-0 w-[55%] h-[45%] border-2 border-emerald-500/50 flex items-center justify-center">
+                                <div class="absolute inset-0 bg-emerald-500/5 animate-pulse"></div>
+                                <span class="text-[8px] text-emerald-500 uppercase font-mono bg-black/50 px-2 py-1">Área de Leitura (Reserva Nr)</span>
+                            </div>
+
+                            <!-- Status Indicators -->
+                            <div class="absolute top-4 left-4 flex gap-2">
+                                <div class="flex items-center gap-2 bg-black/80 border border-emerald-500 px-3 py-1.5">
+                                    <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                    <span class="text-[10px] text-emerald-500 font-mono uppercase tracking-widest">Monitoramento Ativo</span>
+                                </div>
+                            </div>
+
+                            <!-- Debug View (Lupa) -->
+                            <div id="debug-container" class="absolute top-4 left-4 w-64 border border-emerald-500 bg-black/80 p-2 z-30 hidden">
+                                <p class="text-[8px] text-emerald-500 uppercase font-mono mb-1">Visão do OCR (Canto Direito):</p>
+                                <img id="debug-img" src="" class="w-full h-auto mb-2 border border-white/10" alt="Debug OCR" />
+                                <p class="text-[8px] text-emerald-500 uppercase font-mono mb-1">Texto Detectado:</p>
+                                <div id="raw-text-display" class="bg-white/10 p-1 text-[10px] font-mono text-white break-words min-h-[20px]">
+                                    Aguardando leitura...
+                                </div>
+                            </div>
+
+                            <!-- OCR Progress Bar -->
+                            <div id="ocr-progress-container" class="absolute top-4 right-4 w-48 bg-black/80 border border-white/10 p-2 hidden">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[8px] text-white uppercase font-mono">Processando OCR</span>
+                                    <span id="ocr-progress-text" class="text-[8px] text-white font-mono">0%</span>
+                                </div>
+                                <div class="w-full h-1 bg-white/10">
+                                    <div id="ocr-progress-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Flash Effect -->
+                            <div id="flash-effect" class="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-150"></div>
+
+                            <!-- Manual Controls -->
+                            <button onclick="ui.toggleDebug()" class="absolute bottom-4 right-4 p-3 bg-black/50 text-white hover:bg-black transition-colors rounded-full border border-white/20">
+                                <i data-lucide="search" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+
+                        <!-- Controls Bar -->
+                        <div class="bg-white border border-[#141414] p-6 flex flex-wrap gap-4 items-center justify-between">
+                            <div class="flex gap-4">
+                                <button id="btn-toggle-scan" onclick="scanner.toggle()" class="px-8 py-4 bg-[#FF3B30] text-white font-mono uppercase tracking-widest text-sm hover:bg-red-600 transition-colors">
+                                    Parar Monitoramento
+                                </button>
+                                <button onclick="scanner.forceRead()" class="px-8 py-4 bg-white border border-[#141414] font-mono uppercase tracking-widest text-sm hover:bg-slate-50 transition-colors">
+                                    Forçar Leitura
+                                </button>
+                            </div>
+                            <p class="text-xs opacity-40 max-w-xs leading-relaxed">
+                                O sistema lerá o texto "Reserva Nr" no canto superior direito e salvará a foto automaticamente no GitHub.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Side Info -->
+                    <div class="space-y-6">
+                        <div class="bg-white border border-[#141414] p-6">
+                            <h3 class="font-serif italic text-lg mb-4 text-emerald-600">Status da Nuvem</h3>
+                            <div id="cloud-status" class="flex items-center gap-3 text-emerald-600">
+                                <i data-lucide="check-circle" size="24"></i>
+                                <div>
+                                    <p class="text-xs uppercase font-mono tracking-widest opacity-60">GitHub Database</p>
+                                    <p class="text-sm font-mono font-bold">CONECTADO</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-[#141414] p-6">
+                            <h3 class="font-serif italic text-lg mb-4">Última Detecção</h3>
+                            <div id="last-detection-container" class="opacity-30">
+                                <div class="flex items-center gap-3">
+                                    <i data-lucide="check-circle" size="24"></i>
+                                    <div>
+                                        <p class="text-xs uppercase font-mono tracking-widest opacity-60">Número Identificado</p>
+                                        <p id="last-detected-number" class="text-2xl font-mono font-bold">-------</p>
+                                    </div>
+                                </div>
+                                <div id="save-success-msg" class="hidden mt-4 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded flex items-center gap-2 text-emerald-700 text-xs font-mono animate-pulse">
+                                    <i data-lucide="check-circle" size="14"></i>
+                                    FOTO SALVA NO GITHUB!
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-[#141414] p-6">
+                            <h3 class="font-serif italic text-lg mb-4">Instruções</h3>
+                            <ul class="space-y-3 text-xs font-mono leading-relaxed">
+                                <li class="flex gap-2">
+                                    <span class="opacity-40">01</span>
+                                    <span>Coloque a folha em uma superfície plana</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="opacity-40">02</span>
+                                    <span>Garanta boa iluminação sobre o papel</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="opacity-40">03</span>
+                                    <span>O sistema busca qualquer sequência de 7 números</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="opacity-40">04</span>
+                                    <span>A captura é feita assim que o número é lido</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: History -->
+            <section id="view-history" class="view-section space-y-6 hidden">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 w-5 h-5"></i>
+                    <input
+                        type="text"
+                        id="history-search"
+                        placeholder="Digite o número da reserva para buscar a foto..."
+                        oninput="history.render()"
+                        class="w-full bg-white border border-[#141414] py-6 pl-12 pr-4 text-2xl font-mono focus:outline-none focus:ring-2 focus:ring-[#141414]"
+                    />
+                </div>
+
+                <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Items will be injected here -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="p-8 border-t border-[#141414] bg-white">
+            <div class="max-w-7xl mx-auto flex justify-between items-center opacity-40">
+                <p class="text-[10px] font-mono uppercase tracking-widest">© 2026 Scanner de Reservas</p>
+                <div class="flex gap-6">
+                    <a href="#" class="text-[10px] font-mono uppercase tracking-widest hover:underline">Privacidade</a>
+                    <a href="#" class="text-[10px] font-mono uppercase tracking-widest hover:underline">Ajuda</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal: Image Preview -->
+    <div id="image-modal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 hidden" onclick="ui.closeModal()">
+        <button class="absolute top-8 right-8 text-white hover:opacity-50 transition-opacity">
+            <i data-lucide="x" class="w-10 h-10"></i>
+        </button>
+        <img id="modal-img" src="" class="max-w-full max-h-full object-contain border border-white/10 shadow-2xl" alt="Preview" />
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

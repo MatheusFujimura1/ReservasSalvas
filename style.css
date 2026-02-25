@@ -1,0 +1,87 @@
+/* Custom Styles for Scanner App */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-serif: 'Playfair Display', serif;
+}
+
+body {
+    font-family: var(--font-sans);
+}
+
+.font-mono { font-family: var(--font-mono); }
+.font-serif { font-family: var(--font-serif); }
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    transition: all 0.3s ease;
+    border-left: 1px solid #141414;
+}
+
+.nav-btn:first-child { border-left: none; }
+
+.nav-btn:hover {
+    background-color: #f8f9fa;
+}
+
+.nav-btn-active {
+    background-color: #141414;
+    color: white;
+}
+
+.nav-btn-active:hover {
+    background-color: #141414;
+}
+
+.view-section {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.grayscale {
+    filter: grayscale(100%);
+}
+
+.group:hover .grayscale {
+    filter: grayscale(0%);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #141414;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #333;
+}
+
+/* Flash Animation */
+.flash-active {
+    opacity: 1 !important;
+}
+
+/* Success Message Animation */
+.msg-active {
+    display: flex !important;
+}
